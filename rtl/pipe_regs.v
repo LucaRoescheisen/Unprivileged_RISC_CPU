@@ -14,7 +14,8 @@ module fetch_stage(
     output [31:0] pc_out,
     output reg [31:0] pc, //Program counter (Holds address of current instruction)
     output pc_trap,
-    output [31:0] instr_fetch_addr
+    output [31:0] instr_fetch_addr,
+    output reg [31:0] pc_for_decode
 );
 
   assign instr_fetch_addr = pc >> 2;
@@ -32,21 +33,26 @@ module fetch_stage(
 
 reg pc_raw_grab;
 
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
     if(reset) begin
         pc <= 32'h0;
         pc_raw_grab <= 0;
+        pc_for_decode <= 0;
     end else begin
         if(stall || cpu_halt)
             pc <= pc;
-        else if(flush)
+
+        else if(flush) begin
             pc <= pc_target;
-        else if(csr_update_pc)
+            pc_for_decode <= pc;
+        end
+        else if(csr_update_pc) begin
             pc <= csr_pc_update;
+            pc_for_decode <= pc;
+        end
         else begin
-
                 pc <= pc + 4;
-
+                pc_for_decode <= pc;
         end
     end
 end

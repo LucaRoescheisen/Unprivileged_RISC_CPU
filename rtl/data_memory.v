@@ -29,11 +29,12 @@ integer i;
     $readmemh("D:/u_risc/programs/fixed_ram.hex", ram);
   end
 
+
 always @(posedge clk) begin
-  if(reset || flush || stall) begin
+  if(reset) begin
     output_if_instr <= 32'h00000013;
   end
-  else begin
+  else if(!flush && !stall) begin
     output_if_instr <= ram[instr_fetch_addr];
   end
 end

@@ -10,7 +10,8 @@ main:
     div  x4, x1, x2       # x4 = 12 / 3 = 4
 
     # Branch demo
-    addi x6, x0, 0        # x6 = 0
+    addi x6, x0, 0        # Currently not executing
+    addi x6, x0, 2        # x6 = 2
     addi x7, x0, 1        # x7 = 1
     beq  x6, x7, skip     # branch not taken
     addi x6, x6, 5        # executes because branch not taken

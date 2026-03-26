@@ -76,6 +76,7 @@
   wire [31:0] IF_ID_wire;    //Current PC value
 
   wire [31:0] instr_fetch_addr;
+  wire [31:0] pc_for_decode;
   //**     Fetch Stage     **//
   fetch_stage fetch_stage_mod(
     .clk(clk),
@@ -91,6 +92,7 @@
     .pc(IF_ID_wire),
     .pc_trap(trap_instr_addr_misaligned),
     .instr_fetch_addr(instr_fetch_addr),
+    .pc_for_decode(pc_for_decode)
   );
 
   always @(posedge clk or posedge reset) begin //Handle flush and stalling
@@ -102,16 +104,16 @@
       if(stall) begin
         IF_ID_instr <= output_if_instr;
         IF_ID_pc_plus_4 <= IF_ID_pc_plus_4;
-        IF_ID_pc <= IF_ID_pc;
+        IF_ID_pc <= pc_for_decode;
       end else if(cpu_halt) begin
         IF_ID_instr <= output_if_instr;
         IF_ID_pc_plus_4 <= IF_ID_pc_plus_4;
-        IF_ID_pc <= IF_ID_pc;
+        IF_ID_pc <= pc_for_decode;
       end
       else begin
         IF_ID_instr <= output_if_instr;
         IF_ID_pc_plus_4 <= pc_out_wire;
-        IF_ID_pc <= IF_ID_wire;
+        IF_ID_pc <= pc_for_decode;
 
       end
     end
