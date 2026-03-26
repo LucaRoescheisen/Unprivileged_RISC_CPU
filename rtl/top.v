@@ -102,11 +102,11 @@
       IF_ID_pc <= 32'b0;
     end else begin
       if(stall) begin
-        IF_ID_instr <= output_if_instr;
+        IF_ID_instr <= IF_ID_instr;
         IF_ID_pc_plus_4 <= IF_ID_pc_plus_4;
         IF_ID_pc <= pc_for_decode;
       end else if(cpu_halt) begin
-        IF_ID_instr <= output_if_instr;
+        IF_ID_instr <= IF_ID_instr;
         IF_ID_pc_plus_4 <= IF_ID_pc_plus_4;
         IF_ID_pc <= pc_for_decode;
       end
@@ -471,6 +471,20 @@ csr csr_module( //id_ex stage
   .flush_trap(flush_trap),
   .csr_update_pc(csr_update_pc)
 );
-
+/* DEBUG */
+always @(posedge clk) begin
+    $display("cyc=%0d stall=%b flush=%b div_busy=%b div_fin=%b early_stall=%b normal_stall=%b id_ex_div_instr=%b IF_ID_instr=%h id_ex_result=%h",
+        IF_ID_pc,
+        stall,
+        flush,
+        div_busy_w,
+        divider_finished_w,
+        early_stall,
+        normal_stall,
+        id_ex_div_instruction_reg,
+        IF_ID_instr,
+        id_ex_result_w
+    );
+end
 
 endmodule
