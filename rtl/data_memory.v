@@ -71,38 +71,40 @@ always @(posedge clk) begin
 end
 
 
-wire [31:0] current_word = ram[ram_address[11:2]];
-
+//wire [31:0] current_word = ram[ram_address[11:2]]; // switch to sync, so ram becomes bram instead of lutram
+reg[31:0] current_word;
+reg[31:0] prev_word;
 always @(posedge clk) begin
-
+  current_word <= ram[ram_address[11:2]];
+  prev_word <= current_word;
   if(mem_read_en && !id_ex_send_to_uart) begin
     $display("Load: x%0d = 0x%08x", ram_address, data_out);
     case(load_type)
       3'b000: //LOAD BYTE
         case(ram_address[1:0])
-          2'b00: data_out <= {{24{current_word[7]}} , current_word[7:0]};
-          2'b01: data_out <= {{24{current_word[15]}}, current_word[15:8]};
-          2'b10: data_out <= {{24{current_word[23]}}, current_word[23:16]};
-          2'b11: data_out <= {{24{current_word[31]}}, current_word[31:24]};
+          2'b00: data_out <= {{24{prev_word[7]}} , prev_word[7:0]};
+          2'b01: data_out <= {{24{prev_word[15]}}, prev_word[15:8]};
+          2'b10: data_out <= {{24{prev_word[23]}}, prev_word[23:16]};
+          2'b11: data_out <= {{24{prev_word[31]}}, prev_word[31:24]};
         endcase
       3'b001: //LOAD HALF
           case(ram_address[1])
-            1'b0: data_out <= {{16{current_word[15]}} , current_word[15:0]};
-            1'b1: data_out <= {{16{current_word[31]}}, current_word[31:16]};
+            1'b0: data_out <= {{16{prev_word[15]}} , prev_word[15:0]};
+            1'b1: data_out <= {{16{prev_word[31]}}, prev_word[31:16]};
           endcase
       3'b010: //LOAD WORD
-        data_out <= current_word;
+        data_out <= prev_word;
       3'b100: //LOAD BYTE (U)
          case(ram_address[1:0])
-          2'b00: data_out <= {24'b0, current_word[7:0]};
-          2'b01: data_out <= {24'b0, current_word[15:8]};
-          2'b10: data_out <= {24'b0, current_word[23:16]};
-          2'b11: data_out <= {24'b0, current_word[31:24]};
+          2'b00: data_out <= {24'b0, prev_word[7:0]};
+          2'b01: data_out <= {24'b0, prev_word[15:8]};
+          2'b10: data_out <= {24'b0, prev_word[23:16]};
+          2'b11: data_out <= {24'b0, prev_word[31:24]};
         endcase
       3'b101: //LOAD HALF (U)
           case(ram_address[1])
-            1'b0: data_out <= {{16{current_word[0]}} , current_word[15:0]};
-            1'b1: data_out <= {{16{current_word[0]}}, current_word[31:16]};
+            1'b0: data_out <= {{16{prev_word[0]}} , prev_word[15:0]};
+            1'b1: data_out <= {{16{prev_word[0]}}, prev_word[31:16]};
           endcase
       default: begin
             end

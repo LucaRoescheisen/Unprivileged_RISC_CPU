@@ -2,10 +2,10 @@ module uart(
   input clk,
   input reset,
   input uart_store,
-  input [7:0] uart_send_info,
+  input [7:0] uart_send_info, //connected to outside port
   input id_ex_send_to_uart,
   input [7:0] rx,
-  output reg tx
+  output [7:0] tx
 );
   /*
   Baudrate : 115200
@@ -59,7 +59,7 @@ module uart(
       end
       else begin
         baud_rate_counter = baud_rate_counter + 1;
-        baud_tick <= 0
+        baud_tick <= 0;
       end
     end
   end
@@ -78,7 +78,7 @@ module uart(
       tx_fifo_count <= (tx_fifo_count + 1) % FIFO_DEPTH;
     end
     else begin
-      if(!tx_shift_reg_busy && !tx_fifo_empty) begin
+      if(!tx_shift_reg_busy && !tx_fifo_empty && baud_tick) begin
         tx_shift_reg <= {1'b1, tx_fifo[tx_read_ptr] , 1'b0};
         tx_shift_reg_busy <= 1;
         tx_shift_bit <= 0;
@@ -108,13 +108,13 @@ module uart(
       rx_shift_reg_busy <= 0;
     end
     else begin
-      if(id_ex_send_to_uart && rx_fifo && !rx_fifo_full) begin
+      if(id_ex_send_to_uart && rx_fifo_empty && !rx_fifo_full && baud_tick) begin
         rx_fifo[rx_write_ptr] <=uart_send_info;
         rx_write_ptr <= rx_write_ptr + 1;
       end
 
 
-      if(rx == 0 && rx_shift_reg_busy == 0 && !rx_fifo_full) begin
+      if(rx == 0 && rx_shift_reg_busy == 0 && !rx_fifo_full && baud_tick) begin
         rx_shift_reg_busy <= 1;
         rx_shift_bit <= 0;
       end

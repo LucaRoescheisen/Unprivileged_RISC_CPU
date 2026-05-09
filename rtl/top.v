@@ -2,7 +2,8 @@
 /* verilator lint_off UNDRIVEN */
 (* keep_hierarchy = "yes" *) module top(
   input wire clk,
-  input wire reset
+  input wire reset,
+  output wire [7:0] led
 );
 
   wire instr_correctly_executed;
@@ -297,6 +298,24 @@
   reg       ex_mem_csr_write_enable_reg;
   reg [31:0] ex_mem_imm_val_reg;
   reg [31:0] ex_mem_csr_w_data;
+
+//EX_MEM INTEMEDIATE Registers
+  reg [31:0] ex_int_result_reg;
+  reg [4:0]  ex_int_rd_addr_reg;
+  reg        ex_int_reg_write_reg;
+  reg        ex_int_is_load_reg;
+  reg        ex_int_is_store_reg;
+  reg [2:0]  ex_int_load_type_reg;
+  reg [2:0]  ex_int_store_type_reg;
+  reg [31:0] ex_int_rs2_val_reg;
+  reg [31:0] ex_int_ram_address_reg;
+  reg        ex_int_is_lui_reg;
+  reg        ex_int_csr_write_enable_reg;
+  reg [31:0] ex_int_imm_val_reg;
+  reg [31:0] ex_int_csr_w_data;
+  reg [11:0] ex_int_csr_addr_reg;
+  reg [2:0]  ex_int_csr_func_reg;
+  reg        ex_int_send_to_uart;
   //EX-MEM Wires
   wire [31:0] id_ex_result_w;
   wire [31:0] ex_id_pc_target_w;
@@ -361,23 +380,23 @@ assign pc_src = flush;
         ex_mem_csr_write_enable_reg <= 0;
 
     end
-    else if(!stall) begin
-      ex_mem_csr_w_data <= csr_w_data;
-      ex_mem_csr_addr_reg<=id_ex_csr_addr_reg;
-      ex_mem_imm_val_reg <= id_ex_imm_val_reg;
-      ex_mem_csr_func_reg <= id_ex_csr_func_reg;
-      ex_mem_result_reg <= id_ex_result_w;
-      ex_mem_rd_addr_reg  <= id_ex_rd_addr_reg; // Pass the destination forward
-      ex_mem_reg_write_reg <= id_ex_reg_write_reg;
-      ex_mem_is_store_reg  <= id_ex_is_store_reg;
-      ex_mem_is_load_reg   <= id_ex_is_load_reg;
-      ex_mem_load_type_reg <= id_ex_load_type_reg;
-      ex_mem_store_type_reg <= id_ex_store_type_reg;
-      ex_mem_rs2_val_reg <=  id_ex_rs2_val_reg;
-      ex_mem_ram_address_reg <= ex_ram_address_w;
-      ex_mem_is_lui_reg  <= id_ex_is_lui_reg;
+    else if(!stall) begin // Needs to be 2 cycles
+      ex_mem_csr_w_data           <= csr_w_data;
+      ex_mem_csr_addr_reg         <=id_ex_csr_addr_reg;
+      ex_mem_imm_val_reg          <= id_ex_imm_val_reg;
+      ex_mem_csr_func_reg         <= id_ex_csr_func_reg;
+      ex_mem_result_reg           <= id_ex_result_w;
+      ex_mem_rd_addr_reg          <= id_ex_rd_addr_reg; // Pass the destination forward
+      ex_mem_reg_write_reg        <= id_ex_reg_write_reg;
+      ex_mem_is_store_reg         <= id_ex_is_store_reg;
+      ex_mem_is_load_reg          <= id_ex_is_load_reg;
+      ex_mem_load_type_reg        <= id_ex_load_type_reg;
+      ex_mem_store_type_reg       <= id_ex_store_type_reg;
+      ex_mem_rs2_val_reg          <=  id_ex_rs2_val_reg;
+      ex_mem_ram_address_reg      <= ex_ram_address_w;
+      ex_mem_is_lui_reg           <= id_ex_is_lui_reg;
       ex_mem_csr_write_enable_reg <= id_ex_csr_write_enable_reg;
-      ex_mem_send_to_uart <= id_ex_send_to_uart;
+      ex_mem_send_to_uart         <= id_ex_send_to_uart;
     end
 
  end
@@ -486,5 +505,8 @@ always @(posedge clk) begin
         id_ex_result_w
     );
 end
-
+assign led[0] = mem_wb_write_reg;
+assign led[1] = cpu_halt;
+assign led[2] = is_trap;
+assign led[3] = flush;
 endmodule
