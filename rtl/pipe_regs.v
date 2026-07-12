@@ -174,6 +174,7 @@ endmodule
 module execute_stage(
   input clk,
   input reset,
+  input stall,
   input [31:0] id_pc_reg,
   input [31:0] id_pc_4_reg,
   // Data from ID/EX Registers
@@ -218,36 +219,51 @@ module execute_stage(
   output [31:0] csr_w_data,
   output send_to_uart
 );
+ reg is_branch_reg;
+reg [2:0] branch_type_reg;
+ reg [31:0] forward_a_reg, forward_b_reg;
+reg [4:0] alu_op_reg;
+reg divider_trigger_reg;
+reg [2:0] div_op_reg;
+reg div_instruction_reg;
+reg is_lui_reg;
+reg [31:0] imm_val_reg;
+reg is_auipc_reg;
+reg [31:0] id_pc_reg_r;
+reg jal_jump_reg;
+reg  jalr_jump_reg;
+reg [31:0] pc_4_reg;
+
   wire [31:0] forward_val_b;
   wire [31:0] forward_val_a;
   wire [31:0] forward_val_b_inter;
 
   wire [31:0] div_result, alu_result;
   wire [31:0] alu_b = id_alu_src_reg ? id_imm_val_reg : forward_val_b;
-  wire [31:0] result = id_div_instruction ? div_result : (id_ex_is_lui_reg) ? id_imm_val_reg : (id_ex_is_auipc) ? (id_pc_reg + id_imm_val_reg) : alu_result;
+  wire [31:0] result = div_instruction_reg ? div_result : (is_lui_reg) ? imm_val_reg : (is_auipc_reg) ? (id_pc_reg_r + imm_val_reg) : alu_result;
 
   wire divider_finished;
-  assign divider_finished_comb = id_div_instruction && divider_finished;
+  assign divider_finished_comb = div_instruction_reg && divider_finished;
   wire div_busy;
   assign divider_busy = div_busy;
   wire divider_trigger;
-  assign divider_trigger = id_div_instruction && !div_busy && !divider_finished;
+  assign divider_trigger = div_instruction_reg && !div_busy && !divider_finished;
 
   wire take_branch;
   wire ex_jump_branch_taken;
   wire [31:0] target_pc_imm; // For JAL and Branches
-  assign target_pc_imm   = id_pc_reg + id_imm_val_reg;
+  assign target_pc_imm   = id_pc_reg_r + imm_val_reg;
   wire [31:0] target_rs1_imm; //For JALR
-  assign target_rs1_imm  = (forward_val_a + id_imm_val_reg ) & ~32'h1;
-  assign ex_jump_branch_taken = id_jal_jump_reg || id_jalr_jump_reg || (id_is_branch_reg && take_branch);
+  assign target_rs1_imm  = (forward_a_reg + imm_val_reg ) & ~32'h1;
+  assign ex_jump_branch_taken = jal_jump_reg || jalr_jump_reg || (is_branch_reg && take_branch);
 
 
-  assign flush = id_jal_jump_reg || id_jalr_jump_reg || (id_is_branch_reg && take_branch);
+  assign flush = jal_jump_reg || jalr_jump_reg || (is_branch_reg && take_branch);
 
-  assign ex_pc_target = ((id_jalr_jump_reg) ? target_rs1_imm : target_pc_imm);
+  assign ex_pc_target = ((jalr_jump_reg) ? target_rs1_imm : target_pc_imm);
 
   //RAM Address
-  assign ex_ram_address = forward_val_a + id_imm_val_reg;
+  assign ex_ram_address = forward_a_reg + imm_val_reg;
 
   //check for misaligned bit
 
@@ -264,11 +280,10 @@ module execute_stage(
   end
 
   //Result Handling
-  assign ex_result = (id_jal_jump_reg || id_jalr_jump_reg) ? id_pc_4_reg:  result;
+  assign ex_result = (jal_jump_reg || jalr_jump_reg) ? pc_4_reg:  result;
 
   assign csr_w_data = forward_val_a;
   assign forward_val_a =
-
     (ex_mem_reg_write_reg && (ex_mem_rd != 0) && (ex_mem_rd == id_rs1_addr)) ? ex_mem_result_reg :
     (mem_wb_write_reg     && (mem_wb_rd != 0) && (mem_wb_rd == id_rs1_addr))  ? mem_wb_result_reg :
     id_rs1_val_reg ;
@@ -287,21 +302,58 @@ module execute_stage(
 
 
 
+ always @(posedge clk) begin
+  if(reset) begin
+    forward_a_reg <= 0;
+    forward_b_reg <= 0;
+    alu_op_reg    <= 0;
+    divider_trigger_reg <= 0;
+    div_op_reg <= 0;
+    is_branch_reg <= 0;
+    branch_type_reg <= 0;
+    div_instruction_reg <= 0;
+    is_lui_reg <= 0;
+    imm_val_reg <= 0 ;
+    is_auipc_reg <= 0;
+    id_pc_reg_r <= 0;
+    jal_jump_reg <= 0;
+    jalr_jump_reg <= 0;
+    pc_4_reg <= 0;
+  end
+  else if(!stall) begin
+    forward_a_reg <= forward_val_a;
+    forward_b_reg <= alu_b;
+    alu_op_reg <= id_alu_op_reg;
+    divider_trigger_reg <= divider_trigger;
+    div_op_reg <= id_div_op_reg;
+    is_branch_reg <= id_is_branch_reg;
+    branch_type_reg <= id_branch_type_reg;
+    div_instruction_reg <= id_div_instruction;
+    is_lui_reg <= id_ex_is_lui_reg;
+    imm_val_reg <= id_imm_val_reg ;
+    is_auipc_reg <= id_ex_is_auipc;
+    id_pc_reg_r <= id_pc_reg;
+    jal_jump_reg <= id_jal_jump_reg;
+    jalr_jump_reg <= id_jalr_jump_reg;
+    pc_4_reg <= id_pc_4_reg;
+  end
+
+ end
 
   alu alu_module(
-    .a(forward_val_a),
-    .b(alu_b),
-    .alu_op(id_alu_op_reg),
+    .a(forward_a_reg),
+    .b(forward_b_reg),
+    .alu_op(alu_op_reg),
     .result(alu_result)
   );
 
 
     divider divider_module(
     .clk(clk),
-    .divisor(forward_val_b),
-    .dividend(forward_val_a),
-    .start(divider_trigger),
-    .div_op(id_div_op_reg),
+    .divisor(forward_b_reg),
+    .dividend(forward_a_reg),
+    .start(divider_trigger_reg),
+    .div_op(div_op_reg),
     .result(div_result),
     .busy(div_busy),
     .finished(divider_finished)
@@ -310,10 +362,10 @@ module execute_stage(
 
 
   branch_unit branch_unit_module(
-    .is_branch(id_is_branch_reg),
-    .b_type(id_branch_type_reg),
-    .rs1_val(forward_val_a),
-    .rs2_val(forward_val_b),
+    .is_branch(is_branch_reg),
+    .b_type(branch_type_reg),
+    .rs1_val(forward_a_reg),
+    .rs2_val(forward_b_reg),
     .take_branch(take_branch)
   );
 
