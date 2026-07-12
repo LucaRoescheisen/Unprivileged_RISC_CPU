@@ -348,7 +348,7 @@ reg [31:0] ex_mem_csr_w_data_reg;
     .id_div_instruction(id_ex_div_instruction_reg),
     .id_ex_is_lui_reg(id_ex_is_lui_reg),
     .id_ex_is_auipc(id_ex_is_auipc),
-    .ex_mem_reg_write_reg(ex_mem_reg_write_reg),
+    .ex_mem_reg_write_reg(ex_mem_reg_write_reg_f),
     .ex_mem_rd(ex_mem_rd_addr_reg),
     .mem_wb_rd(mem_wb_rd_reg),
     .id_rs1_addr(id_rs1_addr_reg),
@@ -400,14 +400,15 @@ assign pc_src = flush;
       ex_mem_csr_write_enable_reg <= id_ex_csr_write_enable_reg;
 
 
-      ex_mem_csr_w_data_reg <= csr_w_data;           // new stage 1
-      ex_mem_csr_w_data_f   <= ex_mem_csr_w_data_reg;
+            // new stage 1
+      ex_mem_csr_w_data_f   <= csr_w_data;
       ex_mem_csr_addr_reg_f <= ex_mem_csr_addr_reg;
       ex_mem_imm_val_reg_f <= ex_mem_imm_val_reg;
       ex_mem_csr_func_reg_f <= ex_mem_csr_func_reg;
 
-      ex_mem_result_reg_f <= ex_mem_result_reg; //OUTPUT OF EXECUTE
-      ex_mem_result_reg   <= id_ex_result_w;
+
+      ex_mem_result_reg_f <= id_ex_result_w; //OUTPUT OF EXECUTE
+
 
 
       ex_mem_rd_addr_reg_f  <= ex_mem_rd_addr_reg; // Pass the destination forward
@@ -418,8 +419,8 @@ assign pc_src = flush;
       ex_mem_store_type_reg_f <= ex_mem_store_type_reg;
       ex_mem_rs2_val_reg_f <=  ex_mem_rs2_val_reg;
 
-      ex_mem_ram_address_reg <= ex_ram_address_w;
-      ex_mem_ram_address_reg_f <= ex_mem_ram_address_reg;
+
+      ex_mem_ram_address_reg_f <= ex_ram_address_w;
 
       ex_mem_is_lui_reg_f  <= ex_mem_is_lui_reg;
       ex_mem_csr_write_enable_reg_f <= ex_mem_csr_write_enable_reg;
