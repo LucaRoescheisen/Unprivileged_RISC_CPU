@@ -171,99 +171,118 @@ endmodule
 
 
 
-module execute_stage(
-  input clk,
-  input reset,
-  input stall,
-  input [31:0] id_pc_reg,
-  input [31:0] id_pc_4_reg,
-  // Data from ID/EX Registers
-  input [31:0] id_rs1_val_reg,
-  input [31:0] id_rs2_val_reg,
-  input [31:0] id_imm_val_reg,
-  // Control from ID/EX Registers
-  input id_alu_src_reg,
-  input id_is_branch_reg,
-  input [2:0] id_branch_type_reg,
-  input id_jal_jump_reg,
-  input id_jalr_jump_reg,
+  module execute_stage(
+    input clk,
+    input reset,
+    input stall,
+    input [31:0] id_pc_reg,
+    input [31:0] id_pc_4_reg,
+    // Data from ID/EX Registers
+    input [31:0] id_rs1_val_reg,
+    input [31:0] id_rs2_val_reg,
+    input [31:0] id_imm_val_reg,
+    // Control from ID/EX Registers
+    input id_alu_src_reg,
+    input id_is_branch_reg,
+    input [2:0] id_branch_type_reg,
+    input id_jal_jump_reg,
+    input id_jalr_jump_reg,
 
-  input [4:0] id_alu_op_reg,
-  input [2:0] id_div_op_reg,
-  input       id_div_instruction,
-  input       id_ex_is_lui_reg,
-  input        id_ex_is_auipc,
-//Forwarding Values:
-  input        ex_mem_reg_write_reg,
-  input [4:0]  ex_mem_rd,
-  input [4:0]  mem_wb_rd,
-  input [4:0]  id_rs1_addr,
-  input [4:0]  id_rs2_addr,
-  input [31:0] ex_mem_result_reg,
-  input [31:0] mem_wb_result_reg,
-  input        mem_wb_write_reg,
+    input [4:0] id_alu_op_reg,
+    input [2:0] id_div_op_reg,
+    input       id_div_instruction,
+    input       id_ex_is_lui_reg,
+    input        id_ex_is_auipc,
+  //Forwarding Values:
+    input        ex_mem_reg_write_reg,
+    input [4:0]  ex_mem_rd,
+    input [4:0] ex_mem_rd_d,
+    input [4:0]  mem_wb_rd,
+    input [4:0]  id_rs1_addr,
+    input [4:0]  id_rs1_addr_d,
+    input [4:0]  id_rs2_addr,
+    input [4:0]  id_rs2_addr_d,
+    input [31:0] ex_mem_result_reg,
+    input [31:0] ex_mem_result_reg_d,
+    input [31:0] mem_wb_result_reg,
+    input        mem_wb_write_reg,
 
-  input [2:0] load_type,
-  input [2:0] store_type,
-  input is_load,
-  input is_store,
-  // Outputs to EX/MEM Register
-  output [31:0] ex_result,
-  output        flush,
-  output [31:0] ex_pc_target,
-  output [31:0] ex_ram_address,
-  //Control
-  output divider_busy,
-  output divider_finished_comb,
-  output reg misaligned,
-  output [31:0] csr_w_data,
-  output send_to_uart
-);
- reg is_branch_reg;
-reg [2:0] branch_type_reg;
- reg [31:0] forward_a_reg, forward_b_reg;
-reg [4:0] alu_op_reg;
-reg divider_trigger_reg;
-reg [2:0] div_op_reg;
-reg div_instruction_reg;
-reg is_lui_reg;
-reg [31:0] imm_val_reg;
-reg is_auipc_reg;
-reg [31:0] id_pc_reg_r;
-reg jal_jump_reg;
-reg  jalr_jump_reg;
-reg [31:0] pc_4_reg;
+    input [2:0] load_type,
+    input [2:0] store_type,
+    input is_load,
+    input is_store,
+    input [4:0] rs2_addr_reg_inter_f,
+    input [4:0] rs1_addr_reg_inter_f,
+    input [11:0] id_ex_csr_addr_reg,
+    input  [31:0] id_ex_imm_val_reg,
+    input  [2:0] id_ex_csr_func_reg,
 
+
+    input  id_ex_reg_write_reg,
+    input  id_ex_is_store_reg,
+    input  id_ex_is_load_reg,
+    input id_ex_csr_write_enable_reg,
+    input [2:0] id_ex_load_type_reg,
+    input  [2:0] id_ex_store_type_reg,
+    input  [31:0] id_ex_rs2_val_reg,
+    // Outputs to EX/MEM Register
+    output [31:0] ex_result,
+    output        flush,
+    output [31:0] ex_pc_target,
+    output [31:0] ex_ram_address,
+    input [4:0] id_ex_rd_addr_reg,
+    //Control
+    output divider_busy,
+    output divider_finished_comb,
+    output reg misaligned,
+    output [31:0] csr_w_data,
+    output send_to_uart,
+    output reg [4:0] rs2_addr_reg_inter,
+    output reg  [4:0] rs1_addr_reg_inter,
+    output reg [11:0] ex_mem_csr_addr_reg_f,
+    output reg [31:0] ex_mem_imm_val_reg_f,
+    output reg [2:0] ex_mem_csr_func_reg_f,
+    output reg [4:0] ex_mem_rd_f,
+    output reg [4:0]  ex_mem_rd_addr_reg_f,
+    output reg  ex_mem_reg_write_reg_f,
+    output reg  ex_mem_is_store_reg_f,
+    output reg ex_mem_is_load_reg_f,
+    output reg [2:0] ex_mem_load_type_reg_f,
+    output reg  [2:0] ex_mem_store_type_reg_f,
+    output reg  [31:0] ex_mem_rs2_val_reg_f,
+    output reg  ex_mem_is_lui_reg_f,
+    output reg  ex_mem_csr_write_enable_reg_f
+  );
   wire [31:0] forward_val_b;
   wire [31:0] forward_val_a;
   wire [31:0] forward_val_b_inter;
 
   wire [31:0] div_result, alu_result;
   wire [31:0] alu_b = id_alu_src_reg ? id_imm_val_reg : forward_val_b;
-  wire [31:0] result = div_instruction_reg ? div_result : (is_lui_reg) ? imm_val_reg : (is_auipc_reg) ? (id_pc_reg_r + imm_val_reg) : alu_result;
+  wire [31:0] result = id_div_instruction ? div_result : (id_ex_is_lui_reg) ? id_imm_val_reg : (id_ex_is_auipc) ? (id_pc_reg + id_imm_val_reg) : alu_result;
 
   wire divider_finished;
-  assign divider_finished_comb = div_instruction_reg && divider_finished;
+  assign divider_finished_comb = id_div_instruction && divider_finished;
   wire div_busy;
   assign divider_busy = div_busy;
   wire divider_trigger;
-  assign divider_trigger = div_instruction_reg && !div_busy && !divider_finished;
+  assign divider_trigger = id_div_instruction && !div_busy && !divider_finished;
 
   wire take_branch;
   wire ex_jump_branch_taken;
   wire [31:0] target_pc_imm; // For JAL and Branches
-  assign target_pc_imm   = id_pc_reg_r + imm_val_reg;
+  assign target_pc_imm   = id_pc_reg + id_imm_val_reg;
   wire [31:0] target_rs1_imm; //For JALR
-  assign target_rs1_imm  = (forward_a_reg + imm_val_reg ) & ~32'h1;
-  assign ex_jump_branch_taken = jal_jump_reg || jalr_jump_reg || (is_branch_reg && take_branch);
+  assign target_rs1_imm  = (forward_val_a + id_imm_val_reg ) & ~32'h1;
+  assign ex_jump_branch_taken = id_jal_jump_reg || id_jalr_jump_reg || (id_is_branch_reg && take_branch);
 
 
-  assign flush = jal_jump_reg || jalr_jump_reg || (is_branch_reg && take_branch);
+  assign flush = id_jal_jump_reg || id_jalr_jump_reg || (id_is_branch_reg && take_branch);
 
-  assign ex_pc_target = ((jalr_jump_reg) ? target_rs1_imm : target_pc_imm);
+  assign ex_pc_target = ((id_jalr_jump_reg) ? target_rs1_imm : target_pc_imm);
 
   //RAM Address
-  assign ex_ram_address = forward_a_reg + imm_val_reg;
+  assign ex_ram_address = forward_val_a + id_imm_val_reg;
 
   //check for misaligned bit
 
@@ -280,10 +299,11 @@ reg [31:0] pc_4_reg;
   end
 
   //Result Handling
-  assign ex_result = (jal_jump_reg || jalr_jump_reg) ? pc_4_reg:  result;
+  assign ex_result = (id_jal_jump_reg || id_jalr_jump_reg) ? id_pc_4_reg:  result;
 
   assign csr_w_data = forward_val_a;
   assign forward_val_a =
+
     (ex_mem_reg_write_reg && (ex_mem_rd != 0) && (ex_mem_rd == id_rs1_addr)) ? ex_mem_result_reg :
     (mem_wb_write_reg     && (mem_wb_rd != 0) && (mem_wb_rd == id_rs1_addr))  ? mem_wb_result_reg :
     id_rs1_val_reg ;
@@ -300,50 +320,37 @@ reg [31:0] pc_4_reg;
   //Check whether its part of the memory area or periphercal section
   assign send_to_uart = ex_ram_address >= 32'h10000004;
 
+ reg [31:0] forward_a_reg, forward_b_reg;
+ reg [4:0] alu_op_d;
+ reg [2:0] div_op_d;
+ reg divider_trigger_d;
+ reg [2:0] branch_type_d;
+ reg is_branch_d;
+  always @(posedge clk) begin
+    if(reset) begin
+      forward_a_reg  <= 0;
+      forward_b_reg <= 0;
+      alu_op_d <= 0;
+      div_op_d <= 0;
+      branch_type_d <= 0;
+    end
+    else  begin
+      forward_a_reg <= forward_val_a;
+      forward_b_reg <= alu_b;
+      alu_op_d <= id_alu_op_reg;
+      div_op_d <= id_div_op_reg;
+      divider_trigger_d <= divider_trigger;
+      branch_type_d <= id_branch_type_reg;
+      is_branch_d <= id_is_branch_reg;
+    end
 
 
- always @(posedge clk) begin
-  if(reset) begin
-    forward_a_reg <= 0;
-    forward_b_reg <= 0;
-    alu_op_reg    <= 0;
-    divider_trigger_reg <= 0;
-    div_op_reg <= 0;
-    is_branch_reg <= 0;
-    branch_type_reg <= 0;
-    div_instruction_reg <= 0;
-    is_lui_reg <= 0;
-    imm_val_reg <= 0 ;
-    is_auipc_reg <= 0;
-    id_pc_reg_r <= 0;
-    jal_jump_reg <= 0;
-    jalr_jump_reg <= 0;
-    pc_4_reg <= 0;
   end
-  else if(!stall) begin
-    forward_a_reg <= forward_val_a;
-    forward_b_reg <= alu_b;
-    alu_op_reg <= id_alu_op_reg;
-    divider_trigger_reg <= divider_trigger;
-    div_op_reg <= id_div_op_reg;
-    is_branch_reg <= id_is_branch_reg;
-    branch_type_reg <= id_branch_type_reg;
-    div_instruction_reg <= id_div_instruction;
-    is_lui_reg <= id_ex_is_lui_reg;
-    imm_val_reg <= id_imm_val_reg ;
-    is_auipc_reg <= id_ex_is_auipc;
-    id_pc_reg_r <= id_pc_reg;
-    jal_jump_reg <= id_jal_jump_reg;
-    jalr_jump_reg <= id_jalr_jump_reg;
-    pc_4_reg <= id_pc_4_reg;
-  end
-
- end
 
   alu alu_module(
     .a(forward_a_reg),
     .b(forward_b_reg),
-    .alu_op(alu_op_reg),
+    .alu_op(alu_op_d),
     .result(alu_result)
   );
 
@@ -352,8 +359,8 @@ reg [31:0] pc_4_reg;
     .clk(clk),
     .divisor(forward_b_reg),
     .dividend(forward_a_reg),
-    .start(divider_trigger_reg),
-    .div_op(div_op_reg),
+    .start(divider_trigger_d),
+    .div_op(div_op_d),
     .result(div_result),
     .busy(div_busy),
     .finished(divider_finished)
@@ -362,8 +369,8 @@ reg [31:0] pc_4_reg;
 
 
   branch_unit branch_unit_module(
-    .is_branch(is_branch_reg),
-    .b_type(branch_type_reg),
+    .is_branch(is_branch_d),
+    .b_type(branch_type_d),
     .rs1_val(forward_a_reg),
     .rs2_val(forward_b_reg),
     .take_branch(take_branch)

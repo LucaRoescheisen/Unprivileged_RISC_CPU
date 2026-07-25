@@ -2,7 +2,8 @@
 /* verilator lint_off UNDRIVEN */
 (* keep_hierarchy = "yes" *) module top(
   input wire clk,
-  input wire reset
+  input wire reset,
+  output wire [7:0] led
 );
 
   wire instr_correctly_executed;
@@ -284,7 +285,7 @@
   //Writeback
 
   //EX-MEM Registers
-  reg [31:0] ex_mem_result_reg;
+   reg [31:0] ex_mem_result_reg;
   reg [4:0] ex_mem_rd_addr_reg;
   reg ex_mem_reg_write_reg;
   reg ex_mem_is_load_reg;
@@ -297,6 +298,24 @@
   reg       ex_mem_csr_write_enable_reg;
   reg [31:0] ex_mem_imm_val_reg;
   reg [31:0] ex_mem_csr_w_data;
+
+//EX_MEM INTEMEDIATE Registers
+  reg [31:0] ex_int_result_reg;
+  reg [4:0]  ex_int_rd_addr_reg;
+  reg        ex_int_reg_write_reg;
+  reg        ex_int_is_load_reg;
+  reg        ex_int_is_store_reg;
+  reg [2:0]  ex_int_load_type_reg;
+  reg [2:0]  ex_int_store_type_reg;
+  reg [31:0] ex_int_rs2_val_reg;
+  reg [31:0] ex_int_ram_address_reg;
+  reg        ex_int_is_lui_reg;
+  reg        ex_int_csr_write_enable_reg;
+  reg [31:0] ex_int_imm_val_reg;
+  reg [31:0] ex_int_csr_w_data;
+  reg [11:0] ex_int_csr_addr_reg;
+  reg [2:0]  ex_int_csr_func_reg;
+  reg        ex_int_send_to_uart;
   //EX-MEM Wires
   wire [31:0] id_ex_result_w;
   wire [31:0] ex_id_pc_target_w;
@@ -308,26 +327,6 @@
   wire [31:0] csr_w_data;
   wire id_ex_send_to_uart;
   reg ex_mem_send_to_uart;
-
-  reg [31:0] ex_mem_result_reg_f;
-  reg [4:0] ex_mem_rd_addr_reg_f;
-  reg ex_mem_reg_write_reg_f;
-  reg ex_mem_is_load_reg_f;
-  reg ex_mem_is_store_reg_f;
-  reg [2:0] ex_mem_load_type_reg_f;
-  reg [2:0] ex_mem_store_type_reg_f;
-  reg [31:0] ex_mem_rs2_val_reg_f;
-  reg [31:0] ex_mem_ram_address_reg_f;
-  reg       ex_mem_is_lui_reg_f;
-  reg       ex_mem_csr_write_enable_reg_f;
-  reg [31:0] ex_mem_imm_val_reg_f;
-  reg [31:0] ex_mem_csr_w_data_f;
-  reg [11:0] ex_mem_csr_addr_reg_f;
-  reg [2:0] ex_mem_csr_func_reg_f;
-  reg ex_mem_send_to_uart_f;
-reg [31:0] ex_mem_csr_w_data_reg;
-
-
  //**     Execute Stage     **//
   execute_stage execute_stage_module(
     .clk(clk),
@@ -348,12 +347,12 @@ reg [31:0] ex_mem_csr_w_data_reg;
     .id_div_instruction(id_ex_div_instruction_reg),
     .id_ex_is_lui_reg(id_ex_is_lui_reg),
     .id_ex_is_auipc(id_ex_is_auipc),
-    .ex_mem_reg_write_reg(ex_mem_reg_write_reg_f),
+    .ex_mem_reg_write_reg(ex_mem_reg_write_reg),
     .ex_mem_rd(ex_mem_rd_addr_reg),
     .mem_wb_rd(mem_wb_rd_reg),
     .id_rs1_addr(id_rs1_addr_reg),
     .id_rs2_addr(id_rs2_addr_reg),
-    .ex_mem_result_reg(ex_mem_result_reg_f),
+    .ex_mem_result_reg(ex_mem_result_reg),
     .mem_wb_result_reg(mem_wb_result_reg),
     .mem_wb_write_reg(mem_wb_write_reg),
     .load_type(id_ex_load_type_reg),
@@ -382,52 +381,23 @@ assign pc_src = flush;
         ex_mem_csr_write_enable_reg <= 0;
 
     end
-    else if(!stall) begin
-
-      ex_mem_csr_addr_reg<=id_ex_csr_addr_reg;
-      ex_mem_imm_val_reg <= id_ex_imm_val_reg;
-      ex_mem_csr_func_reg <= id_ex_csr_func_reg;
-
-      ex_mem_rd_addr_reg  <= id_ex_rd_addr_reg; // Pass the destination forward
-      ex_mem_reg_write_reg <= id_ex_reg_write_reg;
-      ex_mem_is_store_reg  <= id_ex_is_store_reg;
-      ex_mem_is_load_reg   <= id_ex_is_load_reg;
-      ex_mem_load_type_reg <= id_ex_load_type_reg;
-      ex_mem_store_type_reg <= id_ex_store_type_reg;
-      ex_mem_rs2_val_reg <=  id_ex_rs2_val_reg;
-
-      ex_mem_is_lui_reg  <= id_ex_is_lui_reg;
+    else if(!stall) begin // Needs to be 2 cycles
+      ex_mem_csr_w_data           <= csr_w_data;
+      ex_mem_csr_addr_reg         <=id_ex_csr_addr_reg;
+      ex_mem_imm_val_reg          <= id_ex_imm_val_reg;
+      ex_mem_csr_func_reg         <= id_ex_csr_func_reg;
+      ex_mem_result_reg           <= id_ex_result_w;
+      ex_mem_rd_addr_reg          <= id_ex_rd_addr_reg; // Pass the destination forward
+      ex_mem_reg_write_reg        <= id_ex_reg_write_reg;
+      ex_mem_is_store_reg         <= id_ex_is_store_reg;
+      ex_mem_is_load_reg          <= id_ex_is_load_reg;
+      ex_mem_load_type_reg        <= id_ex_load_type_reg;
+      ex_mem_store_type_reg       <= id_ex_store_type_reg;
+      ex_mem_rs2_val_reg          <=  id_ex_rs2_val_reg;
+      ex_mem_ram_address_reg      <= ex_ram_address_w;
+      ex_mem_is_lui_reg           <= id_ex_is_lui_reg;
       ex_mem_csr_write_enable_reg <= id_ex_csr_write_enable_reg;
-
-
-            // new stage 1
-      ex_mem_csr_w_data_f   <= csr_w_data;
-      ex_mem_csr_addr_reg_f <= ex_mem_csr_addr_reg;
-      ex_mem_imm_val_reg_f <= ex_mem_imm_val_reg;
-      ex_mem_csr_func_reg_f <= ex_mem_csr_func_reg;
-
-
-      ex_mem_result_reg_f <= id_ex_result_w; //OUTPUT OF EXECUTE
-
-
-
-      ex_mem_rd_addr_reg_f  <= ex_mem_rd_addr_reg; // Pass the destination forward
-      ex_mem_reg_write_reg_f <= ex_mem_reg_write_reg;
-      ex_mem_is_store_reg_f  <= ex_mem_is_store_reg;
-      ex_mem_is_load_reg_f   <= ex_mem_is_load_reg;
-      ex_mem_load_type_reg_f <= ex_mem_load_type_reg;
-      ex_mem_store_type_reg_f <= ex_mem_store_type_reg;
-      ex_mem_rs2_val_reg_f <=  ex_mem_rs2_val_reg;
-
-
-      ex_mem_ram_address_reg_f <= ex_ram_address_w;
-
-      ex_mem_is_lui_reg_f  <= ex_mem_is_lui_reg;
-      ex_mem_csr_write_enable_reg_f <= ex_mem_csr_write_enable_reg;
-      ex_mem_send_to_uart_f <= id_ex_send_to_uart;
-
-
-
+      ex_mem_send_to_uart         <= id_ex_send_to_uart;
     end
 
  end
@@ -452,12 +422,12 @@ assign pc_src = flush;
     .flush(flush),
     .stall(stall),
    // .send_to_uart(id_ex_send_to_uart),
-    .load_type(ex_mem_load_type_reg_f),
-    .store_type(ex_mem_store_type_reg_f),
-    .mem_read_en(ex_mem_is_load_reg_f),
-    .mem_write_en(ex_mem_is_store_reg_f),
-    .ram_address(ex_mem_ram_address_reg_f),
-    .data_in(ex_mem_rs2_val_reg_f),
+    .load_type(ex_mem_load_type_reg),
+    .store_type(ex_mem_store_type_reg),
+    .mem_read_en(ex_mem_is_load_reg),
+    .mem_write_en(ex_mem_is_store_reg),
+    .ram_address(ex_mem_ram_address_reg),
+    .data_in(ex_mem_rs2_val_reg),
     .instr_fetch_addr(instr_fetch_addr),
     .data_out(mem_data_out_w),
     .mem_busy(mem_busy_w),
@@ -481,10 +451,10 @@ assign pc_src = flush;
     end
     else if(!stall) begin
 
-        mem_wb_rd_reg      <= ex_mem_rd_addr_reg_f;  // The destination
-        mem_wb_result_reg  <= ex_mem_csr_write_enable_reg_f ? csr_r_data : ex_mem_result_reg_f;   // The ALU result or CSR value
-        mem_wb_write_reg   <= ex_mem_reg_write_reg_f;
-        mem_wb_is_load_reg <= ex_mem_is_load_reg_f;  // The Mux selector
+        mem_wb_rd_reg      <= ex_mem_rd_addr_reg;  // The destination
+        mem_wb_result_reg  <= ex_mem_csr_write_enable_reg ? csr_r_data : ex_mem_result_reg;   // The ALU result or CSR value
+        mem_wb_write_reg   <= ex_mem_reg_write_reg;
+        mem_wb_is_load_reg <= ex_mem_is_load_reg;  // The Mux selector
         mem_data_out_reg   <= mem_data_out_w;
     end
 end
@@ -501,11 +471,11 @@ csr csr_module( //id_ex stage
   .clk(clk),
   .reset(reset),
   .current_privilege(privilege),
-  .csr_addr(ex_mem_csr_addr_reg_f),
-  .csr_func(ex_mem_csr_func_reg_f),
-  .csr_w_data(ex_mem_csr_w_data_f),
-  .csr_imm(ex_mem_imm_val_reg_f),
-  .csr_write_enable(ex_mem_csr_write_enable_reg_f),
+  .csr_addr(ex_mem_csr_addr_reg),
+  .csr_func(ex_mem_csr_func_reg),
+  .csr_w_data(ex_mem_csr_w_data),
+  .csr_imm(ex_mem_imm_val_reg),
+  .csr_write_enable(ex_mem_csr_write_enable_reg),
   .is_mret(is_mret),
   .trap_sources(is_trap),
   .trap_instr_pc(id_ex_pc_reg),
@@ -536,5 +506,8 @@ always @(posedge clk) begin
         id_ex_result_w
     );
 end
-
+assign led[0] = mem_wb_write_reg;
+assign led[1] = cpu_halt;
+assign led[2] = is_trap;
+assign led[3] = flush;
 endmodule
