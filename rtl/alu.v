@@ -1,13 +1,27 @@
 module alu(
+  input clk,
   input [31:0] a,
   input [31:0] b,
   input [4:0] alu_op,
 
   output reg [31:0] result
 );
+
   wire [63:0] full_product_s_s = $signed(a) * $signed(b); /* verilator lint_off UNUSED */
   wire [63:0] full_product_s_u = $signed(a) * b; /* verilator lint_off UNUSED */
   wire [63:0] full_product_u_u = a * b;
+
+ reg [31:0] mult_result_reg;
+  always @(posedge clk) begin
+    case(alu_op)
+      5'b10011: mult_result_reg <= full_product_s_s[31:0];
+      5'b10100: mult_result_reg <= full_product_s_s[63:32];
+      5'b10101: mult_result_reg <= full_product_s_u[63:32];
+      5'b10110: mult_result_reg <= full_product_u_u[63:32];
+      default:  mult_result_reg <= mult_result_reg;
+    endcase
+  end
+
 
 
 always @(*) begin //Process OPCODES
@@ -34,13 +48,7 @@ always @(*) begin //Process OPCODES
   5'b10001 : result = ($signed(a) < $signed(b)) ? 32'd1 : 32'd0; // SLTI
   5'b10010 : result = (a < b) ? 32'd1 : 32'd0;    // SLTIU
   //M Extension
-  5'b10011 : result = full_product_s_s[31:0];     //MUL
-
-  5'b10100 : begin result = full_product_s_s[63:32];    //MULH
-       $display("Multiplied!");
-  end
-  5'b10101 : result = full_product_s_u[63:32];    //MULSU
-  5'b10110 : result = full_product_u_u[63:32];    //MULU
+  5'b10011,5'b10100,5'b10101,5'b10110: result = mult_result_reg;
 
     default:
     result = 32'bx;

@@ -1,6 +1,7 @@
 /* verilator lint_off UNUSED */
 module divider(
   input clk,
+  input reset,
   input [31:0] divisor, //top
   input [31:0] dividend, //bottom
   input start,
@@ -67,6 +68,10 @@ end
 
 
 always @(posedge clk) begin
+  if(reset) begin
+    counter <= 0;
+  end
+
   if(!busy) begin
     finished <= 0;
     if (start) begin

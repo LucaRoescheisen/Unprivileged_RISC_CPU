@@ -17,7 +17,7 @@
   wire [1:0] next_privilege;
   always @(posedge clk) begin
     if(reset) privilege <= 2'b11;
-    else      privilege <= next_privilege;
+    else      privilege <= 2'b11;
 
   end
 
@@ -161,6 +161,7 @@
   reg        id_ex_csr_write_enable_reg;
   reg [11:0] id_ex_csr_addr_reg;
   //ID-EX Wires
+    reg mem_forwarded;
     wire [31:0] mem_data_out_w;
   wire [4:0]  id_rs1_addr_w;
   wire [4:0]  id_rs2_addr_w;
@@ -194,6 +195,7 @@
   (*KEEP="true"*)
   decode_stage decode_stage_mod(
     .clk(clk),
+    .mem_forwarded(mem_forwarded),
     .IF_ID_instr(IF_ID_instr),
     .IF_ID_pc(IF_ID_pc),
     .mem_wb_result(mem_data_out_w),
@@ -245,6 +247,7 @@
       id_ex_div_instruction_reg <= 0;
       id_ex_csr_write_enable_reg <= 0;
       id_ex_imm_val_reg <= 0;
+      id_ex_alu_op_reg <= 0;
     end
     else if(!stall) begin
       id_ex_pc_reg_plus_4_reg <= IF_ID_pc_plus_4;
@@ -327,11 +330,32 @@
   wire [31:0] csr_w_data;
   wire id_ex_send_to_uart;
   reg ex_mem_send_to_uart;
+  wire [31:0] id_imm_val_reg_d;
+  wire [2:0]  id_ex_csr_func_reg_d;
+  wire [4:0]  id_ex_rd_addr_reg_d;
+  wire id_ex_reg_write_reg_d;
+  wire id_ex_is_store_reg_d;
+  wire id_ex_is_load_reg_d;
+  wire [2:0] id_ex_load_type_reg_d;
+  wire [2:0] id_ex_store_type_reg_d;
+  wire [31:0] id_ex_rs2_val_reg_d;
+  wire id_ex_is_lui_reg_d;
+  wire id_ex_csr_write_enable_reg_d;
+  wire mul_op_active;
+  wire id_div_instruction_d;
+  wire forwarded_d;
+  reg ex_forwarded;
+  wire [11:0] id_ex_csr_addr_reg_d;
  //**     Execute Stage     **//
   execute_stage execute_stage_module(
     .clk(clk),
     .reset(reset),
     .stall(stall),
+    .id_ex_csr_write_enable_reg(id_ex_csr_write_enable_reg),
+    .id_ex_reg_write_reg(id_ex_reg_write_reg),
+    .id_ex_rd_addr_reg(id_ex_rd_addr_reg),
+    .id_ex_csr_addr_reg(id_ex_csr_addr_reg),
+    .id_ex_csr_func_reg(id_ex_csr_func_reg),
     .id_pc_reg(id_ex_pc_reg),
     .id_pc_4_reg(id_ex_pc_reg_plus_4_reg),
     .id_rs1_val_reg(id_ex_rs1_val_reg),
@@ -355,10 +379,10 @@
     .ex_mem_result_reg(ex_mem_result_reg),
     .mem_wb_result_reg(mem_wb_result_reg),
     .mem_wb_write_reg(mem_wb_write_reg),
-    .load_type(id_ex_load_type_reg),
-    .store_type(id_ex_store_type_reg),
-    .is_load(id_ex_is_load_reg),
-    .is_store(id_ex_is_store_reg),
+    .id_ex_load_type_reg(id_ex_load_type_reg),
+    .id_ex_store_type_reg(id_ex_store_type_reg),
+    .id_ex_is_load_reg(id_ex_is_load_reg),
+    .id_ex_is_store_reg(id_ex_is_store_reg),
     .ex_result(id_ex_result_w),
     .flush(flush_jump),
     .ex_pc_target(pc_target),      // Feed this back to fetch
@@ -366,13 +390,28 @@
     .divider_busy(div_busy_w),
     .divider_finished_comb(divider_finished_w),
     .misaligned(trap_load_store_misaligned),
-    .csr_w_data(csr_w_data),
-    .send_to_uart(id_ex_send_to_uart)
+    .csr_w_data_d(csr_w_data),
+    .send_to_uart(id_ex_send_to_uart),
+    .id_ex_csr_addr_reg_d(id_ex_csr_addr_reg_d),
+    .id_imm_val_reg_d(id_imm_val_reg_d),
+    .id_ex_csr_func_reg_d(id_ex_csr_func_reg_d),
+    .id_ex_rd_addr_reg_d(id_ex_rd_addr_reg_d),
+    .id_ex_reg_write_reg_d(id_ex_reg_write_reg_d),
+    .id_ex_is_store_reg_d(id_ex_is_store_reg_d),
+    .id_ex_is_load_reg_d(id_ex_is_load_reg_d),
+    .id_ex_store_type_reg_d(id_ex_store_type_reg_d),
+    .id_ex_load_type_reg_d(id_ex_load_type_reg_d),
+    .id_ex_rs2_val_reg_d(id_ex_rs2_val_reg_d),
+    .id_ex_is_lui_reg_d(id_ex_is_lui_reg_d),
+    .id_ex_csr_write_enable_reg_d(id_ex_csr_write_enable_reg_d),
+    .mul_op_active(mul_op_active),
+    .id_div_instruction_d(id_div_instruction_d),
+    .forwarded_d(forwarded_d)
 );
 assign pc_src = flush;
 
  always @(posedge clk) begin
-    if(reset) begin
+    if(reset || flush) begin
         ex_mem_reg_write_reg <= 0;
         ex_mem_is_store_reg  <= 0;
         ex_mem_is_load_reg   <= 0;
@@ -383,21 +422,22 @@ assign pc_src = flush;
     end
     else if(!stall) begin // Needs to be 2 cycles
       ex_mem_csr_w_data           <= csr_w_data;
-      ex_mem_csr_addr_reg         <=id_ex_csr_addr_reg;
-      ex_mem_imm_val_reg          <= id_ex_imm_val_reg;
-      ex_mem_csr_func_reg         <= id_ex_csr_func_reg;
+      ex_mem_csr_addr_reg         <=id_ex_csr_addr_reg_d;
+      ex_mem_imm_val_reg          <= id_imm_val_reg_d;
+      ex_mem_csr_func_reg         <= id_ex_csr_func_reg_d;
       ex_mem_result_reg           <= id_ex_result_w;
-      ex_mem_rd_addr_reg          <= id_ex_rd_addr_reg; // Pass the destination forward
-      ex_mem_reg_write_reg        <= id_ex_reg_write_reg;
-      ex_mem_is_store_reg         <= id_ex_is_store_reg;
-      ex_mem_is_load_reg          <= id_ex_is_load_reg;
-      ex_mem_load_type_reg        <= id_ex_load_type_reg;
-      ex_mem_store_type_reg       <= id_ex_store_type_reg;
-      ex_mem_rs2_val_reg          <=  id_ex_rs2_val_reg;
+      ex_mem_rd_addr_reg          <= id_ex_rd_addr_reg_d;
+      ex_mem_reg_write_reg        <= id_ex_reg_write_reg_d;
+      ex_mem_is_store_reg         <= id_ex_is_store_reg_d;
+      ex_mem_is_load_reg          <= id_ex_is_load_reg_d;
+      ex_mem_load_type_reg        <= id_ex_load_type_reg_d;
+      ex_mem_store_type_reg       <= id_ex_store_type_reg_d;
+      ex_mem_rs2_val_reg          <=  id_ex_rs2_val_reg_d;
       ex_mem_ram_address_reg      <= ex_ram_address_w;
-      ex_mem_is_lui_reg           <= id_ex_is_lui_reg;
-      ex_mem_csr_write_enable_reg <= id_ex_csr_write_enable_reg;
+      ex_mem_is_lui_reg           <= id_ex_is_lui_reg_d;
+      ex_mem_csr_write_enable_reg <= id_ex_csr_write_enable_reg_d;
       ex_mem_send_to_uart         <= id_ex_send_to_uart;
+      ex_forwarded                <= forwarded_d;
     end
 
  end
@@ -407,11 +447,8 @@ assign pc_src = flush;
   wire mem_busy_w;
   wire wrote_to_ram;
 
-  reg [4:0] d_mem_wb_rd_reg;
-  reg [31:0] d_mem_wb_result_reg;
-  reg d_mem_wb_write_reg;
-  reg d_mem_wb_is_load_reg;
-  reg [31:0] d_mem_data_out_reg;
+
+
 
 
 
@@ -434,9 +471,25 @@ assign pc_src = flush;
     .wrote_to_ram(wrote_to_ram),
     .output_if_instr(output_if_instr)
 );
-  wire early_stall = id_ex_div_instruction_reg && !div_busy_w && !divider_finished_w;
+
+reg mul_op_active_prev;
+reg id_div_instruction_d_prev;
+always @(posedge clk) begin
+  if(reset || flush) begin
+    mul_op_active_prev <= 1'b0;
+    id_div_instruction_d_prev <= 0;
+  end
+  else begin
+    mul_op_active_prev <= mul_op_active;
+    id_div_instruction_d_prev <= id_div_instruction_d;
+  end
+end
+
+wire mul_stall = mul_op_active && !mul_op_active_prev;
+
+  wire early_stall = (id_div_instruction_d && !id_div_instruction_d_prev) && !div_busy_w && !divider_finished_w;
   wire normal_stall = div_busy_w;
-  assign stall = early_stall || normal_stall;
+  assign stall = early_stall || normal_stall || mul_stall;
 
  always @(posedge clk) begin
     if(reset) begin
@@ -446,7 +499,7 @@ assign pc_src = flush;
         mem_data_out_reg   <= 0;
         mem_wb_is_load_reg <= 0;
         // Clean up the old delay regs
-
+        mem_forwarded <=0;
 
     end
     else if(!stall) begin
@@ -456,6 +509,7 @@ assign pc_src = flush;
         mem_wb_write_reg   <= ex_mem_reg_write_reg;
         mem_wb_is_load_reg <= ex_mem_is_load_reg;  // The Mux selector
         mem_data_out_reg   <= mem_data_out_w;
+        mem_forwarded <= ex_forwarded;
     end
 end
 

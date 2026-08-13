@@ -240,7 +240,7 @@ always @(*) begin //Anytime the input signal changes
             7'b0000000: alu_op = 5'b00000; //ADD
             7'b0100000: alu_op = 5'b00001; //SUB
             7'b0000001: alu_op = 5'b10011;  //MUL
-            default : alu_op = 5'bx;
+            default : alu_op = 5'b0;
           endcase
         end
         3'b100 :  begin
@@ -253,7 +253,7 @@ always @(*) begin //Anytime the input signal changes
                 $display("DIV");
 
              end
-             default : alu_op = 5'bx;
+             default : alu_op = 5'b0;
           endcase
         end
         3'b110 : begin
@@ -267,8 +267,8 @@ always @(*) begin //Anytime the input signal changes
 
              end
               default : begin
-               alu_op = 5'bx;
-               div_op = 3'bx;
+               alu_op = 5'b0;
+               div_op = 3'b0;
               end
           endcase
         end
@@ -283,14 +283,14 @@ always @(*) begin //Anytime the input signal changes
                 is_div_instruction = 1'b1;
                  $display("R U");
              end
-             default : alu_op = 5'bx;
+             default : alu_op = 5'b0;
           endcase
         end
         3'b001 : begin
           case(instr[31:25])
             7'b0000000: alu_op = 5'b00101; //LEFT SHIFT LOGICAL
             7'b0000001: alu_op = 5'b10100; //MUL HIGH
-            default : alu_op = 5'bx;
+            default : alu_op = 5'b0;
           endcase
         end
         3'b101: begin
@@ -303,21 +303,21 @@ always @(*) begin //Anytime the input signal changes
                 is_div_instruction = 1'b1;
                 $display("DIV U");
              end
-             default : alu_op = 5'bx;
+             default : alu_op = 5'b0;
           endcase
         end
         3'b010 : begin
            case(instr[31:25])
              7'b0000000: alu_op = 5'b01000;  //LESS THAN
              7'b0000001: alu_op = 5'b10101; //MUL HIGH (S) (U)
-             default : alu_op = 5'bx;
+             default : alu_op = 5'b0;
           endcase
         end
         3'b011 : begin
            case(instr[31:25])
              7'b0000000: alu_op = 5'b01001;  //LESS THAN (U)
              7'b0000001: alu_op = 5'b10110; //MUL HIGH (U)
-             default : alu_op = 5'bx;
+             default : alu_op = 5'b0;
           endcase
         end
       endcase
@@ -335,12 +335,12 @@ always @(*) begin //Anytime the input signal changes
           case(imm[11:5])
             7'b0000000 : alu_op = 5'b01111; //SHIFT RIGHT LOGICAL IMMEDIATE
             7'b0100000 : alu_op = 5'b10000; //SHIFT RIGHT ARITHMETIC IMMEDIATE
-            default : alu_op = 5'bx;
+            default : alu_op = 5'b0;
           endcase
         end
         3'b010 : alu_op = 5'b10001; // LESS THAN IMMEDIATE
         3'b011 : alu_op = 5'b10010; // LESS THAN IMMEDIATE UNSIGNED
-        default : alu_op = 5'bx;
+        default : alu_op = 5'b0;
         endcase
     end
 
@@ -349,7 +349,7 @@ always @(*) begin //Anytime the input signal changes
     end
 
     default: begin
-      alu_op = 5'bx;
+      alu_op = 5'b0;
       b_type = 3'bx;
       div_op = 3'bx;
       div_start = 1'b0;

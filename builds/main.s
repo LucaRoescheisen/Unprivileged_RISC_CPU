@@ -29,16 +29,26 @@ main:
 skip_nt:
     addi x3, x0, 0xBB      # should NOT execute
 
+# ── 4. BRANCH TAKEN ────────────────────────────
+branch_taken_test:
+    addi x1, x0, 5
+    addi x2, x0, 5
+    beq  x1, x2, taken_ok   # taken (5 == 5)
+    addi x4, x0, 0xCC       # should NOT execute
+    j    load_store_test
+taken_ok:
+    addi x4, x0, 0xDD       # should execute: x4 = 0xDD
+
 # ── 5. LOAD / STORE ───────────────────────────
 load_store_test:
-    li   x1, 0x7FF0        # address near stack
+    li   x1, 0x1FF0        # address near stack
     addi x2, x0, 0x42
-    sw   x2, 0(x1)         # mem[0x7FF0] = 0x42
+    sw   x2, 0(x1)         # mem[0x1FF0] = 0x42
     lw   x3, 0(x1)         # x3 = 0x42  (should match x2)
 
     addi x2, x0, 0xAB
     sb   x2, 4(x1)         # mem[0x7FF4] = 0xAB (byte)
-    lb   x3, 4(x1)         # x3 = 0xAB
+    lb   x3, 4(x1)         # x3 = 0xFFFFFFAB
 
 # ── 6. CSR READ/WRITE ─────────────────────────
     li   x1, 0xDEAD
