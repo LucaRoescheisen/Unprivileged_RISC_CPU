@@ -1,0 +1,27 @@
+vivado -mode batch -source tcl/build.tcl -journal D:/HDL_Environment/logs/vivado_build.jou -log D:/HDL_Environment/logs/vivado_build.log
+
+
+
+
+riscv64-unknown-elf-as -march=rv32i -mabi=ilp32 -o programs/boot.o builds/boot.s
+riscv64-unknown-elf-as -march=rv32i -mabi=ilp32 -o programs/main.o builds/main.s
+riscv64-unknown-elf-as -march=rv32i -mabi=ilp32 -o programs/trap_handler.o builds/trap_handler.s
+riscv64-unknown-elf-ld -m elf32lriscv -T builds/linker.ld programs/boot.o programs/trap_handler.o programs/main.o -o programs/program.elf
+riscv64-unknown-elf-objcopy -O verilog --verilog-data-width=4 --reverse-bytes=4 -R .riscv.attributes -R .comment programs/program.elf programs/program.hex
+
+Disassembly : riscv64-unknown-elf-objdump -d programs/program.elf
+
+
+riscv64-unknown-elf-as -march=rv32i -mabi=ilp32 -o programs/test.o builds/test.s
+riscv64-unknown-elf-ld -m elf32lriscv -Ttext 0x0 -o programs/test.elf programs/test.o
+riscv64-unknown-elf-objcopy -O verilog --verilog-data-width=4 programs/test.elf programs/test.hex
+
+riscv64-unknown-elf-objcopy -O verilog -j .text --verilog-data-width=4 --reverse-bytes=4 programs/test.elf programs/test.hex
+
+
+ //WSL
+verilator -Wall -Wno-fatal --cc rtl/*.v --exe ../tb.cpp --trace -top-module top_verilator --Mdir ./sim/obj_dir
+make -C sim/obj_dir -j -f Vtop_verilator.mk Vtop_verilator
+./sim/obj_dir/Vtop_verilator
+
+

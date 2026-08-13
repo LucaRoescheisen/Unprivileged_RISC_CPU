@@ -2,7 +2,8 @@ module tb_top;
   reg clk = 0;
   reg reset = 0;
   top uut(
-    .clk(clk)
+    .clk(clk),
+    .reset(reset)
   );
 
   always #5 clk = ~clk;
@@ -10,9 +11,9 @@ module tb_top;
   initial begin
     $display("Starting simulation");
     reset = 1;
-    #1;
+    #6;
     reset = 0;
-    #100;
+    #1000;
   end
 
 endmodule

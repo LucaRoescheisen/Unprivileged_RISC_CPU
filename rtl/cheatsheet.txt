@@ -1,3 +1,22 @@
+TRAP CAUSES
+  if bit 31 == 0 synchronous, if bit 31 == 1 asynchronous (interrupt)
+
+  1 : illegal instructions
+  2 : CSR access violation
+  3 : Instruction address misaligned
+  4 : Load/Store misaligned
+
+
+
+
+
+
+
+
+
+
+
+
 rd  : destination
 rs1 : source register
 rs2 : immediate
@@ -29,15 +48,37 @@ Load:
 
   Store instructions, store a value from regfile
 
+
+
+
+
+CSRRW rd, csr, rs1
+csrrw: Read the current value of csr register,
+       Replace old csr with value in rs1
+       Write old value to rd
+
+
+
   Goals:
     FSM                 DONE
     S-type              DONE
     B-type              DONE
     U-type              DONE
     IR                  DONE
-    M Extension
-    Pipelining
-    CSRs
+    M Extension         DONE
+    Pipelining          DONE
+    CSRs                PARTIAL
+
+    MRET, SRET
+    medeleg, mideleg,
+    mtime, mtimecmp
+    MTIP in MTIP
+    stvec, sepc, sstatus, sret,
+    PMP
+    ecall
+
+
+
     Timers and Interrupts
     I/O, UART
     Virtual Memory

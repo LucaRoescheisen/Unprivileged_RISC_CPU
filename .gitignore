@@ -2,3 +2,5 @@ vivado/
 dfx_runtime.txt
 .Xil/
 logs/
+rtl/top_test.v
+sim/obj_dir
